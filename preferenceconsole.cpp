@@ -30,7 +30,7 @@ void PreferenceConsole::begin() {
 
 namespace {
 
-String readLine(bool echo) {
+String readLine(bool echo, bool mask) {
   String line = "";
   while (true) {
     while (Serial.available()) {
@@ -40,20 +40,27 @@ String readLine(bool echo) {
         return line;
       }
       char ch = static_cast<char>(c);
-      if (echo) Serial.print(ch);
+      if (echo) Serial.print(mask ? '*' : ch);
       line += ch;
     }
     yield();
   }
 }
 
-String readKey(const char* key, const String& value) {
+String maskString(const String& str, bool mask) {
+  if (!mask) return str;
+  String s;
+  for (int i = 0; i < str.length(); ++i) s += '*';
+  return s;
+}
+
+String readKey(const char* key, const String& value, bool mask = false) {
   const bool cancelable = value[0] != '\0';
   while (true) {
     Serial.print(key);
-    if (cancelable) Serial.print(String(" [") + value + "]");
+    if (cancelable) Serial.print(String(" [") + maskString(value, mask) + "]");
     Serial.print(" : ");
-    String line = readLine(true);
+    String line = readLine(true, mask);
     if (line[0] != '\0') return line;
     if (cancelable) return value;
   }
@@ -65,7 +72,7 @@ void setupServer(const PreferenceConsole& console,
   while (true) {
     String name = readKey("Name", console.Name());
     String ssid = readKey("SSID", console.SSID());
-    String psk = readKey("PSK", console.PSK());
+    String psk = readKey("PSK", console.PSK(), true);
 
     Serial.print("conneting.. ");
     if (network->begin(name.c_str(), ssid.c_str(), psk.c_str(), 10000)) {
@@ -88,7 +95,7 @@ void setupInflux(const PreferenceConsole& console, Preferences* preferences) {
     String host = readKey("Host", console.InfluxHost());
     int port = readKey("Port", String(console.InfluxPort())).toInt();
     String user = readKey("User", console.InfluxUser());
-    String psk = readKey("PSK", console.InfluxPsk());
+    String psk = readKey("PSK", console.InfluxPsk(), true);
     String db = readKey("Database", console.Database());
 
     String ip = NetworkUtil::resolveAddress(host.c_str());
