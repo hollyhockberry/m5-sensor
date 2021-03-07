@@ -4,6 +4,7 @@
 #include "preferenceconsole.h"
 #include <InfluxDbClient.h>
 #include <Preferences.h>
+#include <FastLED.h>
 #include "networkutil.h"
 
 namespace {
@@ -124,6 +125,16 @@ void setupInflux(const PreferenceConsole& console, Preferences* preferences) {
 }  // namespace
 
 void PreferenceConsole::setup() {
+  const int NUM_LEDS = 25;
+  const int LED_PIN = 27;
+  CRGB leds[NUM_LEDS];
+  FastLED.addLeds<WS2812, LED_PIN>(leds, NUM_LEDS);
+  FastLED.setBrightness(20);
+  for (int i = 0; i < NUM_LEDS; ++i) {
+    leds[i] = CRGB(0xff0000);
+  }
+  FastLED.show();
+
   Serial.println();
   Serial.println("Enter setup console");
   Serial.println();
