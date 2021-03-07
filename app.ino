@@ -5,39 +5,61 @@
 #include <InfluxDbClient.h>
 #include "dhtmeter.h"
 #include "networkutil.h"
-
-#include "settings.h"
+#include "preferenceconsole.h"
 
 namespace {
-const int kInterval = 5 * 1000;
-DhtMeter dht(25, DHT11);
-
+const int kInterval = 60 * 1000;
+bool ConfigMode = false;
+PreferenceConsole preferences_;
 NetworkUtil network;
 InfluxDBClient influxclient;
-Point dataPoint(INFLUXDB_MEASUREMENT);
+Point dataPoint("environment");
+
+DhtMeter dht(25, DHT11);
 }  // namespace
 
 void setup() {
   M5.begin(true, false, false);
+  ConfigMode = M5.Btn.read() != 0;
 
-  network.begin("", SSID, PSK);
+  preferences_.begin();
 
-  String host = "http://" + NetworkUtil::resolveAddress(INFLUXDB_HOST)
-                          + ":" + String(INFLUXDB_PORT, DEC);
+  if (ConfigMode) return;
+
+  if (!network.begin(preferences_.Name().c_str(),
+                     preferences_.SSID().c_str(),
+                     preferences_.PSK().c_str(), 20 * 1000)) {
+    ConfigMode = true;
+    return;
+  }
+
+  String ip = NetworkUtil::resolveAddress(preferences_.InfluxHost().c_str());
+  if (ip == "0.0.0.0") {
+    ConfigMode = true;
+    return;
+  }
+  String url = "http://" + ip + ":" + String(preferences_.InfluxPort(), DEC);
   influxclient.setConnectionParamsV1(
-    host.c_str(),
-    INFLUXDB_DB_NAME,
-    INFLUXDB_USER,
-    INFLUXDB_PASSWORD);
-  influxclient.validateConnection();
+    url.c_str(),
+    preferences_.Database().c_str(),
+    preferences_.InfluxUser().c_str(),
+    preferences_.InfluxPsk().c_str());
 
-  dataPoint.addTag("place", INFLUXDB_TAG_PLACE);
+  if (!influxclient.validateConnection()) {
+    ConfigMode = true;
+    return;
+  }
+  dataPoint.addTag("place", preferences_.Name());
 
   dht.begin();
   dht.Fahrenheit(false);
 }
 
 void loop() {
+  if (ConfigMode) {
+    preferences_.setup();
+  }
+
   int t = ::millis();
 
   if (network.update() && dht.update()) {
