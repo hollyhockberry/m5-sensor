@@ -12,6 +12,7 @@ class NetworkUtil {
 
   bool begin(const char hostname[], const char ssid[], const char psk[],
              int timeout = 0);
+  void end();
   bool update();
 
   static String resolveAddress(const char mdnsname[], uint32_t timeout = 2000U);

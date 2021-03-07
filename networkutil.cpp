@@ -22,6 +22,10 @@ bool NetworkUtil::begin(const char hostname[],
   return true;
 }
 
+void NetworkUtil::end() {
+  WiFi.disconnect();
+}
+
 bool NetworkUtil::update() {
   return wifiMulti_.run() == WL_CONNECTED;
 }
