@@ -8,9 +8,9 @@
 
 namespace {
 const int kInterval = 60 * 1000;
-bool ConfigMode = false;
 
 void postData() {
+  int t = ::millis();
   PreferenceConsole preferences;
   preferences.begin();
 
@@ -52,29 +52,28 @@ void postData() {
     influxclient.writePoint(dataPoint);
   }
   network.end();
+
+  // enter sleep
+  t = ::millis() - t;
+  ESP.deepSleep((kInterval - t) * 1000);
+  for (;;) {}
+  // never reach
 }
 
 }  // namespace
 
-
 void setup() {
   ::pinMode(39, INPUT_PULLUP);
-  ConfigMode = ::digitalRead(39) == 0;
+
+  if (::digitalRead(39) != 0) {
+    postData();
+  }
 }
 
 void loop() {
-  if (ConfigMode) {
-    Serial.begin(115200);
-    PreferenceConsole preferences;
-    preferences.begin();
-    preferences.setup();
-    return;
-  }
-
-  int t = ::millis();
-  postData();
-  t = ::millis() - t;
-  if (t < kInterval) {
-    ::delay(kInterval - t);
-  }
+  Serial.begin(115200);
+  PreferenceConsole preferences;
+  preferences.begin();
+  preferences.setup();
+  // never readch
 }
