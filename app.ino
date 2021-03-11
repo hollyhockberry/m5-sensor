@@ -1,7 +1,6 @@
 // m5-sensor
 // Copyright (c) 2021 Inaba
 
-#include <M5Atom.h>
 #include <InfluxDbClient.h>
 #include "dhtmeter.h"
 #include "networkutil.h"
@@ -19,8 +18,8 @@ DhtMeter dht(25, DHT11);
 }  // namespace
 
 void setup() {
-  M5.begin(true, false, false);
-  ConfigMode = M5.Btn.read() != 0;
+  ::pinMode(39, INPUT_PULLUP);
+  ConfigMode = ::digitalRead(39) == 0;
 
   preferences_.begin();
 
@@ -57,6 +56,7 @@ void setup() {
 
 void loop() {
   if (ConfigMode) {
+    Serial.begin(115200);
     preferences_.setup();
   }
 
