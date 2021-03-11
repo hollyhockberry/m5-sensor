@@ -9,60 +9,41 @@
 namespace {
 const int kInterval = 60 * 1000;
 bool ConfigMode = false;
-PreferenceConsole preferences_;
-NetworkUtil network;
-InfluxDBClient influxclient;
-Point dataPoint("environment");
 
-DhtMeter dht(25, DHT11);
-}  // namespace
+void postData() {
+  PreferenceConsole preferences;
+  preferences.begin();
 
-void setup() {
-  ::pinMode(39, INPUT_PULLUP);
-  ConfigMode = ::digitalRead(39) == 0;
-
-  preferences_.begin();
-
-  if (ConfigMode) return;
-
-  if (!network.begin(preferences_.Name().c_str(),
-                     preferences_.SSID().c_str(),
-                     preferences_.PSK().c_str(), 20 * 1000)) {
-    ConfigMode = true;
+  NetworkUtil network;
+  if (!network.begin(preferences.Name().c_str(),
+                     preferences.SSID().c_str(),
+                     preferences.PSK().c_str(), 20 * 1000)) {
     return;
   }
 
-  String ip = NetworkUtil::resolveAddress(preferences_.InfluxHost().c_str());
+  String ip = NetworkUtil::resolveAddress(preferences.InfluxHost().c_str());
   if (ip == "0.0.0.0") {
-    ConfigMode = true;
     return;
   }
-  String url = "http://" + ip + ":" + String(preferences_.InfluxPort(), DEC);
+  String url = "http://" + ip + ":" + String(preferences.InfluxPort(), DEC);
+  InfluxDBClient influxclient;
   influxclient.setConnectionParamsV1(
     url.c_str(),
-    preferences_.Database().c_str(),
-    preferences_.InfluxUser().c_str(),
-    preferences_.InfluxPsk().c_str());
+    preferences.Database().c_str(),
+    preferences.InfluxUser().c_str(),
+    preferences.InfluxPsk().c_str());
 
   if (!influxclient.validateConnection()) {
-    ConfigMode = true;
     return;
   }
-  dataPoint.addTag("place", preferences_.Name());
+  Point dataPoint("environment");
+  dataPoint.addTag("place", preferences.Name());
 
+  DhtMeter dht(25, DHT11);
   dht.begin();
   dht.Fahrenheit(false);
-}
 
-void loop() {
-  if (ConfigMode) {
-    Serial.begin(115200);
-    preferences_.setup();
-  }
-
-  int t = ::millis();
-
-  if (network.update() && dht.update()) {
+  if (dht.update()) {
     dataPoint.clearFields();
     dataPoint.addField("temperature", dht.Temperature());
     dataPoint.addField("humidity", dht.Humidity());
@@ -70,7 +51,28 @@ void loop() {
 
     influxclient.writePoint(dataPoint);
   }
+  network.end();
+}
 
+}  // namespace
+
+
+void setup() {
+  ::pinMode(39, INPUT_PULLUP);
+  ConfigMode = ::digitalRead(39) == 0;
+}
+
+void loop() {
+  if (ConfigMode) {
+    Serial.begin(115200);
+    PreferenceConsole preferences;
+    preferences.begin();
+    preferences.setup();
+    return;
+  }
+
+  int t = ::millis();
+  postData();
   t = ::millis() - t;
   if (t < kInterval) {
     ::delay(kInterval - t);
