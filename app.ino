@@ -10,7 +10,6 @@ namespace {
 const int kInterval = 60 * 1000;
 
 void postData() {
-  int t = ::millis();
   PreferenceConsole preferences;
   preferences.begin();
 
@@ -52,12 +51,6 @@ void postData() {
     influxclient.writePoint(dataPoint);
   }
   network.end();
-
-  // enter sleep
-  t = ::millis() - t;
-  ESP.deepSleep((kInterval - t) * 1000);
-  for (;;) {}
-  // never reach
 }
 
 }  // namespace
@@ -66,7 +59,13 @@ void setup() {
   ::pinMode(39, INPUT_PULLUP);
 
   if (::digitalRead(39) != 0) {
+    int t = ::millis();
     postData();
+    // enter sleep
+    t = ::millis() - t;
+    ESP.deepSleep((kInterval - t) * 1000);
+    for (;;) {}
+    // never reach
   }
 }
 
