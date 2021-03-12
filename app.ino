@@ -22,6 +22,7 @@ void postData() {
 
   String ip = NetworkUtil::resolveAddress(preferences.InfluxHost().c_str());
   if (ip == "0.0.0.0") {
+    network.end();
     return;
   }
   String url = "http://" + ip + ":" + String(preferences.InfluxPort(), DEC);
@@ -33,6 +34,7 @@ void postData() {
     preferences.InfluxPsk().c_str());
 
   if (!influxclient.validateConnection()) {
+    network.end();
     return;
   }
   Point dataPoint("environment");
